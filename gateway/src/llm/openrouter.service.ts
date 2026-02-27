@@ -12,9 +12,10 @@ export class OpenRouterService {
     });
   }
 
-  async chat(messages: any[], tools: any[]) {
+  async chat(messages: any, tools: any[]) {
     return this.client.chat.completions.create({
-      model: 'mistralai/mistral-7b-instruct',
+      model: 'qwen/qwen-2.5-72b-instruct',
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       messages,
       tools,
       tool_choice: 'auto',

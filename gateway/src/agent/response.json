@@ -1,0 +1,43 @@
+{
+  "id": "gen-1771381468-lZkv2a9fNAE8dvsAq3IF",
+  "provider": "DeepInfra",
+  "model": "qwen/qwen-2.5-72b-instruct",
+  "object": "chat.completion",
+  "created": 1771381468,
+  "choices": [
+    {
+      "logprobs": null,
+      "finish_reason": "tool_calls",
+      "native_finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "refusal": null,
+        "reasoning": null,
+        "tool_calls": [
+          {
+            "type": "function",
+            "index": 0,
+            "id": "call_2N7HpnXPMWL4tQZHvfv4bqLk",
+            "function": { "name": "get_all_products", "arguments": "{}" }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 273,
+    "completion_tokens": 17,
+    "total_tokens": 290,
+    "cost": 0.00003939,
+    "is_byok": false,
+    "prompt_tokens_details": { "cached_tokens": 0, "audio_tokens": 0 },
+    "cost_details": {
+      "upstream_inference_cost": 0.00003939,
+      "upstream_inference_prompt_cost": 0.00003276,
+      "upstream_inference_completions_cost": 0.00000663
+    },
+    "completion_tokens_details": { "reasoning_tokens": 0, "audio_tokens": 0 }
+  }
+}

@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { ChildProcess } from 'child_process';
+import { ChildProcess, spawn } from 'child_process';
 
 @Injectable()
 export class McpClientService implements OnModuleInit, OnModuleDestroy {
@@ -11,6 +11,17 @@ export class McpClientService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     try {
+      // Manually spawn the process to capture logs
+      this.serverProcess = spawn('node', ['../mcp-server/dist/main.js'], {
+        stdio: ['pipe', 'pipe', 'inherit'], // inherit stderr to see logs
+      });
+
+      // Capture server logs
+      this.serverProcess.stderr?.on('data', (data) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        console.log('📝 MCP Server log:', data.toString());
+      });
+
       // Create transport with command configuration
       this.transport = new StdioClientTransport({
         command: 'node',
@@ -50,6 +61,19 @@ export class McpClientService implements OnModuleInit, OnModuleDestroy {
   }
 
   async callTool(name: string, args: any) {
-    return this.client.callTool({ name, arguments: args });
+    console.log('🔧 Gateway calling tool:', name, 'with args:', args);
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const result = await this.client.callTool({ name, arguments: args });
+      console.log(
+        '✅ Gateway received result:',
+        JSON.stringify(result, null, 2),
+      );
+      return result;
+    } catch (error) {
+      console.error('❌ Gateway tool call error:', error);
+      throw error;
+    }
   }
 }
