@@ -6,13 +6,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductModule } from './product/product.module';
 import { Product } from './product/product.entity';
 import { McpModule } from './mcp/mcp.module';
+import path from 'path';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'sqlite',
-      database: 'database.sqlite',
+      database: path.join(__dirname, '..', '..', 'database.sqlite'),
       entities: [Product],
       synchronize: true,
     }),

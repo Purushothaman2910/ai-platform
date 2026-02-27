@@ -8,12 +8,21 @@ import {
   CallToolRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import { ProductService } from '../product/product.service';
+import path from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class McpService implements OnModuleInit {
   private server: Server;
 
   constructor(private readonly productService: ProductService) {}
+
+  private logFile = path.join(__dirname, '../../mcp-server.log');
+
+  private log(message: string) {
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(this.logFile, `[${timestamp}] ${message}\n`);
+  }
 
   async onModuleInit() {
     await this.initializeMcpServer();
@@ -39,6 +48,7 @@ export class McpService implements OnModuleInit {
   }
 
   private registerTools() {
+    this.log('Registering tools...');
     // Register tools/list handler
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
@@ -59,8 +69,11 @@ export class McpService implements OnModuleInit {
     this.server.setRequestHandler(
       CallToolRequestSchema,
       async (request: CallToolRequest) => {
+        this.log(`Tool call received: ${request.params.name}`);
+        this.log(`Arguments: ${JSON.stringify(request.params.arguments)}`);
         switch (request.params.name) {
           case 'get_all_products':
+            this.log('Executing get_all_products');
             return await this.getAllProducts();
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
@@ -70,7 +83,22 @@ export class McpService implements OnModuleInit {
   }
 
   private async getAllProducts() {
+    this.log('Fetching all products...');
     const products = await this.productService.findAll();
+
+    if (products.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'No products found',
+          },
+        ],
+      };
+    }
+
+    this.log(`Found ${products.length} products`);
+    this.log(`Found ${JSON.stringify(products)} products`);
 
     return {
       content: [
