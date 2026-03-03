@@ -61,6 +61,28 @@ export class McpService implements OnModuleInit {
               properties: {},
             },
           },
+          {
+            name: 'add_product',
+            description: 'Add products to the database',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  description: 'Name of the product',
+                },
+                price: {
+                  type: 'number',
+                  description: 'Price of the product',
+                },
+                stock: {
+                  type: 'number',
+                  description: 'Available stock quantity',
+                },
+              },
+              required: ['name', 'price', 'stock'],
+            },
+          },
         ],
       };
     });
@@ -75,6 +97,9 @@ export class McpService implements OnModuleInit {
           case 'get_all_products':
             this.log('Executing get_all_products');
             return await this.getAllProducts();
+          case 'add_product':
+            this.log('Executing add_product');
+            return await this.addProduct(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -105,6 +130,19 @@ export class McpService implements OnModuleInit {
         {
           type: 'text',
           text: JSON.stringify(products, null, 2),
+        },
+      ],
+    };
+  }
+
+  private async addProduct(product: any) {
+    this.log('Adding product...');
+    await this.productService.create(product);
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Product added successfully',
         },
       ],
     };

@@ -13,4 +13,8 @@ export class ProductService {
   findAll() {
     return this.repo.find();
   }
+
+  create(product: Product) {
+    return this.repo.save(product);
+  }
 }
