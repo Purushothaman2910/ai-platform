@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { OpenRouterService } from '../llm/openrouter.service';
 import { McpClientService } from 'src/mcp-client/mcp-client.service';
+import { SessionService } from 'src/session/session.service';
 
 type Message =
   | { role: 'system' | 'user'; content: string }
@@ -12,10 +13,13 @@ export class AgentService {
   constructor(
     private readonly llm: OpenRouterService,
     private readonly mcpClient: McpClientService,
+    private readonly sessionService: SessionService,
   ) {}
 
-  async ask(question: string) {
+  async ask(sessionId: string, question: string) {
     const tools = await this.mcpClient.listTools();
+
+    this.sessionService.createSession(sessionId);
 
     const openAiTools = tools.tools.map((tool) => ({
       type: 'function',
@@ -26,13 +30,13 @@ export class AgentService {
       },
     }));
 
-    const messages: Message[] = [
-      {
-        role: 'system',
-        content: `You are a helpful assistant. You can use the following tools: ${tools?.tools.map((tool) => tool.name).join(', ')}`,
-      },
-      { role: 'user', content: question },
-    ];
+    const messages: Message[] = this.sessionService.getMessages(sessionId);
+
+    // add user message
+    messages.push({
+      role: 'user',
+      content: question,
+    });
 
     // First LLM call
     const completion = await this.llm.chat(messages, openAiTools);
@@ -93,10 +97,31 @@ export class AgentService {
 
       // Get LLM's final natural language response
       const finalCompletion = await this.llm.chat(messages, openAiTools);
-      return finalCompletion.choices[0].message.content;
+
+      const finalMsg = finalCompletion.choices[0].message;
+
+      messages.push({
+        role: 'assistant',
+        content: finalMsg.content,
+      });
+
+      this.sessionService.setMessages(sessionId, messages);
+
+      return {
+        response: finalMsg.content,
+      };
     }
 
+    messages.push({
+      role: 'assistant',
+      content: msg.content,
+    });
+
+    this.sessionService.setMessages(sessionId, messages);
+
     // No tool calls, return direct response
-    return msg.content;
+    return {
+      response: msg.content,
+    };
   }
 }

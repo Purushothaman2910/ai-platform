@@ -7,9 +7,10 @@ import { AiService } from './ai/ai.service';
 import { LlmModule } from './llm/llm.module';
 import { AgentModule } from './agent/agent.module';
 import { McpClientModule } from './mcp-client/mcp-client.module';
+import { SessionModule } from './session/session.module';
 
 @Module({
-  imports: [ConfigModule.forRoot(), LlmModule, AgentModule, McpClientModule],
+  imports: [ConfigModule.forRoot(), LlmModule, AgentModule, McpClientModule, SessionModule],
   controllers: [AppController, AiController],
   providers: [AppService, AiService],
 })

@@ -6,7 +6,7 @@ export class AgentController {
   constructor(private readonly agent: AgentService) {}
 
   @Post('ask')
-  ask(@Body('question') question: string) {
-    return this.agent.ask(question);
+  ask(@Body() body: { sessionId: string; question: string }) {
+    return this.agent.ask(body.sessionId, body.question);
   }
 }

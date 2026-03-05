@@ -3,9 +3,10 @@ import { AgentService } from './agent.service';
 import { AgentController } from './agent.controller';
 import { LlmModule } from 'src/llm/llm.module';
 import { McpClientModule } from 'src/mcp-client/mcp-client.module';
+import { SessionModule } from 'src/session/session.module';
 
 @Module({
-  imports: [LlmModule, McpClientModule],
+  imports: [LlmModule, McpClientModule, SessionModule],
   providers: [AgentService],
   controllers: [AgentController],
 })
