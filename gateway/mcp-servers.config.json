@@ -1,0 +1,32 @@
+{
+  "servers": [
+    {
+      "name": "product-server",
+      "description": "Product management MCP server",
+      "command": "node",
+      "args": ["../mcp-server/dist/main.js"],
+      "enabled": true
+    },
+    {
+      "name": "filesystem-server",
+      "description": "File system operations",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/allowed/path"
+      ],
+      "enabled": false
+    },
+    {
+      "name": "custom-server",
+      "description": "Custom business logic server",
+      "command": "node",
+      "args": ["../custom-server/dist/main.js"],
+      "enabled": false,
+      "env": {
+        "DATABASE_URL": "postgresql://localhost:5432/mydb"
+      }
+    }
+  ]
+}

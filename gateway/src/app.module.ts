@@ -8,9 +8,10 @@ import { LlmModule } from './llm/llm.module';
 import { AgentModule } from './agent/agent.module';
 import { McpClientModule } from './mcp-client/mcp-client.module';
 import { SessionModule } from './session/session.module';
+import { ObservablityModule } from './observablity/observablity.module';
 
 @Module({
-  imports: [ConfigModule.forRoot(), LlmModule, AgentModule, McpClientModule, SessionModule],
+  imports: [ConfigModule.forRoot(), LlmModule, AgentModule, McpClientModule, SessionModule, ObservablityModule],
   controllers: [AppController, AiController],
   providers: [AppService, AiService],
 })
