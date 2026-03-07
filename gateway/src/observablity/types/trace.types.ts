@@ -6,4 +6,7 @@ export interface ToolTrace {
   status: 'success' | 'error';
   duration: number;
   timestamp: Date;
+  metadata?: {
+    serverName?: string;
+  };
 }

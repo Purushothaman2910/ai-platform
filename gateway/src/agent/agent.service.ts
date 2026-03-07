@@ -1,3 +1,4 @@
+// src/agent/agent.service.ts
 import { Injectable } from '@nestjs/common';
 import { OpenRouterService } from '../llm/openrouter.service';
 import { McpClientService } from 'src/mcp-client/mcp-client.service';
@@ -26,8 +27,8 @@ interface ReasoningLoopConfig {
 @Injectable()
 export class AgentService {
   private readonly reasoningConfig: ReasoningLoopConfig = {
-    maxIterations: 5, // Maximum reasoning loops
-    maxToolCalls: 10, // Maximum total tool calls
+    maxIterations: 5,
+    maxToolCalls: 10,
   };
 
   constructor(
@@ -38,13 +39,35 @@ export class AgentService {
   ) {}
 
   async ask(sessionId: string, question: string) {
-    // Initialize session and tools
+    // Initialize session
     this.sessionService.createSession(sessionId);
-    const tools = await this.mcpClient.listTools();
+
+    // Get tools from ALL connected MCP servers
+    const tools = await this.mcpClient.listTools(); // Returns tools with serverName
+
+    // Check if any servers are connected
+    const connectedServers = this.mcpClient.getConnectedServers();
+    if (connectedServers.length === 0) {
+      return {
+        response:
+          'No MCP servers are currently connected. Please check your configuration.',
+      };
+    }
+
+    // Format tools for OpenAI
     const openAiTools = this.formatToolsForOpenAI(tools.tools);
 
     // Get conversation history and add user message
     const messages = this.sessionService.getMessages(sessionId);
+
+    // Enhanced system message with server info
+    if (messages.length === 0) {
+      messages.push({
+        role: 'system',
+        content: this.buildSystemMessage(connectedServers, tools.tools),
+      });
+    }
+
     messages.push({ role: 'user', content: question });
 
     // Run reasoning loop
@@ -54,6 +77,43 @@ export class AgentService {
     this.sessionService.setMessages(sessionId, messages);
 
     return { response };
+  }
+
+  /**
+   * Build enhanced system message with server and tool information
+   */
+  private buildSystemMessage(servers: string[], tools: any[]): string {
+    const serverList = servers.join(', ');
+    const toolsByServer = this.groupToolsByServer(tools);
+
+    let message = `You are a helpful AI assistant with access to ${servers.length} MCP server(s): ${serverList}.\n\n`;
+    message += 'Available tools:\n';
+
+    for (const [serverName, serverTools] of Object.entries(toolsByServer)) {
+      message += `\n[${serverName}]:\n`;
+      serverTools.forEach((tool: any) => {
+        message += `  • ${tool.name}: ${tool.description || 'No description'}\n`;
+      });
+    }
+
+    return message;
+  }
+
+  /**
+   * Group tools by their server name
+   */
+  private groupToolsByServer(tools: any[]): Record<string, any[]> {
+    return tools.reduce(
+      (acc, tool) => {
+        const serverName = tool.serverName || 'unknown';
+        if (!acc[serverName]) {
+          acc[serverName] = [];
+        }
+        acc[serverName].push(tool);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
   }
 
   private async reasoningLoop(
@@ -158,11 +218,23 @@ export class AgentService {
     const startTime = Date.now();
 
     try {
+      // The MCP client now automatically finds which server has this tool
       const result = await this.mcpClient.callTool(toolName, args);
       const duration = Date.now() - startTime;
 
+      // Determine which server handled the tool (from result or logs)
+      const serverName = this.extractServerName(result, toolName);
+
       // Log successful tool execution
-      this.logToolTrace(sessionId, toolName, args, result, 'success', duration);
+      this.logToolTrace(
+        sessionId,
+        toolName,
+        args,
+        result,
+        'success',
+        duration,
+        serverName,
+      );
 
       return {
         role: 'tool',
@@ -186,9 +258,31 @@ export class AgentService {
       return {
         role: 'tool',
         tool_call_id: toolCall.id,
-        content: JSON.stringify({ error: error.message }),
+        content: JSON.stringify({
+          error: error.message,
+          hint: 'The tool may not be available on any connected MCP server.',
+        }),
       };
     }
+  }
+
+  /**
+   * Extract server name from result or tool name
+   */
+  private extractServerName(result: any, toolName: string): string {
+    // You could enhance this by having the MCP client return server info
+    // For now, we'll try to infer from connected servers
+    const servers = this.mcpClient.getConnectedServers();
+
+    // Simple heuristic - could be improved
+    if (toolName.includes('product'))
+      return servers.includes('product-server') ? 'product-server' : 'unknown';
+    if (toolName.includes('file'))
+      return servers.includes('filesystem-server')
+        ? 'filesystem-server'
+        : 'unknown';
+
+    return servers[0] || 'unknown';
   }
 
   private async getFinalResponse(
@@ -212,7 +306,7 @@ export class AgentService {
       type: 'function',
       function: {
         name: tool.name,
-        description: tool.description,
+        description: tool.description || 'No description provided',
         parameters: tool.inputSchema,
       },
     }));
@@ -234,6 +328,7 @@ export class AgentService {
     output: any,
     status: 'success' | 'error',
     duration: number,
+    serverName?: string,
   ): void {
     this.traceService.logToolTrace({
       sessionId,
@@ -243,6 +338,30 @@ export class AgentService {
       status,
       duration,
       timestamp: new Date(),
+      metadata: {
+        serverName: serverName || 'unknown',
+      },
     });
+  }
+
+  /**
+   * Get available MCP servers - useful for debugging/monitoring
+   */
+  async getAvailableServers() {
+    return {
+      servers: this.mcpClient.getServerInfo(),
+      connectedCount: this.mcpClient.getConnectedServers().length,
+    };
+  }
+
+  /**
+   * Get all available tools grouped by server
+   */
+  async getAvailableTools() {
+    const tools = await this.mcpClient.listTools();
+    return {
+      total: tools.tools.length,
+      byServer: this.groupToolsByServer(tools.tools),
+    };
   }
 }
