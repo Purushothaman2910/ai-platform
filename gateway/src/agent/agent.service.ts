@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 // src/agent/agent.service.ts
 import { Injectable } from '@nestjs/common';
 import { OpenRouterService } from '../llm/openrouter.service';
@@ -5,10 +7,7 @@ import { McpClientService } from 'src/mcp-client/mcp-client.service';
 import { SessionService } from 'src/session/session.service';
 import { TraceService } from 'src/observablity/trace.service';
 
-type Message =
-  | { role: 'system' | 'user'; content: string }
-  | { role: 'assistant'; content: string | null; tool_calls?: any[] }
-  | { role: 'tool'; tool_call_id: string; content: string };
+import { Message } from 'src/session/session.service';
 
 interface ToolCall {
   id: string;
@@ -43,7 +42,7 @@ export class AgentService {
     this.sessionService.createSession(sessionId);
 
     // Get tools from ALL connected MCP servers
-    const tools = await this.mcpClient.listTools(); // Returns tools with serverName
+    const tools = await this.mcpClient.listTools();
 
     // Check if any servers are connected
     const connectedServers = this.mcpClient.getConnectedServers();
@@ -51,6 +50,7 @@ export class AgentService {
       return {
         response:
           'No MCP servers are currently connected. Please check your configuration.',
+        sessionId,
       };
     }
 
@@ -63,20 +63,38 @@ export class AgentService {
     // Enhanced system message with server info
     if (messages.length === 0) {
       messages.push({
+        id: `sys-${Date.now()}`,
         role: 'system',
         content: this.buildSystemMessage(connectedServers, tools.tools),
+        timestamp: new Date(),
       });
     }
 
-    messages.push({ role: 'user', content: question });
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user' as const,
+      content: question,
+      timestamp: new Date(),
+    };
+    messages.push(userMessage);
+    this.sessionService.addMessage(sessionId, userMessage);
 
     // Run reasoning loop
+    const startTime = Date.now();
     const response = await this.reasoningLoop(sessionId, messages, openAiTools);
+    const processingTime = Date.now() - startTime;
 
-    // Save final conversation state
-    this.sessionService.setMessages(sessionId, messages);
+    // Save final assistant message is already handled in reasoningLoop?
+    // Wait, reasoningLoop adds messages to the local 'messages' array.
+    // I should make sure it's saved in the sessionService.
 
-    return { response };
+    return {
+      response,
+      sessionId,
+      metadata: {
+        processingTime,
+      },
+    };
   }
 
   /**
@@ -135,10 +153,14 @@ export class AgentService {
       // Check if LLM wants to use tools
       if (!assistantMessage.tool_calls?.length) {
         // No more tool calls - return final answer
-        messages.push({
-          role: 'assistant',
+        const aiMsg = {
+          id: `ai-${Date.now()}`,
+          role: 'assistant' as const,
           content: assistantMessage.content,
-        });
+          timestamp: new Date(),
+        };
+        messages.push(aiMsg);
+        this.sessionService.addMessage(sessionId, aiMsg);
         return assistantMessage.content || 'No response generated.';
       }
 
@@ -146,12 +168,16 @@ export class AgentService {
       totalToolCalls += assistantMessage.tool_calls.length;
       if (totalToolCalls > this.reasoningConfig.maxToolCalls) {
         console.warn('⚠️ Max tool calls reached');
-        messages.push({
-          role: 'assistant',
+        const limitMsg = {
+          id: `ai-limit-${Date.now()}`,
+          role: 'assistant' as const,
           content:
             "I've reached my tool usage limit. Here's what I found so far...",
-        });
-        return await this.getFinalResponse(messages, openAiTools);
+          timestamp: new Date(),
+        };
+        messages.push(limitMsg);
+        this.sessionService.addMessage(sessionId, limitMsg);
+        return await this.getFinalResponse(sessionId, messages, openAiTools);
       }
 
       // Process tool calls
@@ -160,7 +186,7 @@ export class AgentService {
 
     // Max iterations reached - get final answer
     console.warn('⚠️ Max reasoning iterations reached');
-    return await this.getFinalResponse(messages, openAiTools);
+    return await this.getFinalResponse(sessionId, messages, openAiTools);
   }
 
   private async processToolCalls(
@@ -173,11 +199,15 @@ export class AgentService {
     );
 
     // Add assistant's message with tool calls
-    messages.push({
-      role: 'assistant',
+    const aiMsg = {
+      id: `ai-${Date.now()}`,
+      role: 'assistant' as const,
       content: assistantMessage.content,
       tool_calls: assistantMessage.tool_calls,
-    });
+      timestamp: new Date(),
+    };
+    messages.push(aiMsg);
+    this.sessionService.addMessage(sessionId, aiMsg);
 
     // Filter and execute function tool calls
     const functionToolCalls = this.filterFunctionToolCalls(
@@ -189,7 +219,10 @@ export class AgentService {
     );
 
     // Add tool results to conversation
-    messages.push(...toolResults);
+    for (const result of toolResults) {
+      messages.push(result);
+      this.sessionService.addMessage(sessionId, result);
+    }
   }
 
   private filterFunctionToolCalls(toolCalls: any[]): ToolCall[] {
@@ -237,9 +270,11 @@ export class AgentService {
       );
 
       return {
-        role: 'tool',
+        id: `tool-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        role: 'tool' as const,
         tool_call_id: toolCall.id,
         content: JSON.stringify(result),
+        timestamp: new Date(),
       };
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -256,12 +291,14 @@ export class AgentService {
       );
 
       return {
-        role: 'tool',
+        id: `tool-err-${Date.now()}`,
+        role: 'tool' as const,
         tool_call_id: toolCall.id,
         content: JSON.stringify({
           error: error.message,
           hint: 'The tool may not be available on any connected MCP server.',
         }),
+        timestamp: new Date(),
       };
     }
   }
@@ -286,6 +323,7 @@ export class AgentService {
   }
 
   private async getFinalResponse(
+    sessionId: string,
     messages: Message[],
     openAiTools: any[],
   ): Promise<string> {
@@ -293,10 +331,14 @@ export class AgentService {
     const finalCompletion = await this.llm.chat(messages, openAiTools);
     const finalMessage = finalCompletion.choices[0].message;
 
-    messages.push({
-      role: 'assistant',
+    const finalMsg = {
+      id: `ai-final-${Date.now()}`,
+      role: 'assistant' as const,
       content: finalMessage.content,
-    });
+      timestamp: new Date(),
+    };
+    messages.push(finalMsg);
+    this.sessionService.addMessage(sessionId, finalMsg);
 
     return finalMessage.content || 'Unable to generate response.';
   }
@@ -347,7 +389,7 @@ export class AgentService {
   /**
    * Get available MCP servers - useful for debugging/monitoring
    */
-  async getAvailableServers() {
+  getAvailableServers() {
     return {
       servers: this.mcpClient.getServerInfo(),
       connectedCount: this.mcpClient.getConnectedServers().length,

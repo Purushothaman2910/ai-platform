@@ -5,7 +5,6 @@ import type { AskRequest, AskResponse, Message } from "../types/chat.types";
 const ENDPOINTS = {
   ASK: "/agent/ask",
   MESSAGES: (sessionId: string) => `/sessions/${sessionId}/messages`,
-  REGENERATE: (messageId: string) => `/messages/${messageId}/regenerate`,
 };
 
 /**
@@ -27,16 +26,6 @@ export async function getSessionMessages(
     ...msg,
     timestamp: new Date(msg.timestamp),
   }));
-}
-
-/**
- * Regenerate a response for a specific message
- */
-export async function regenerateResponse(
-  messageId: string,
-): Promise<AskResponse> {
-  const response = await api.post<AskResponse>(ENDPOINTS.REGENERATE(messageId));
-  return response.data;
 }
 
 /**
@@ -90,7 +79,6 @@ export function createLoadingMessage(sessionId: string): Message {
 export function createErrorMessage(
   sessionId: string,
   errorMessage: string,
-  _originalMessage?: string,
 ): Message {
   return {
     id: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -105,7 +93,6 @@ export function createErrorMessage(
 export default {
   askAgent,
   getSessionMessages,
-  regenerateResponse,
   createUserMessage,
   createAIMessage,
   createLoadingMessage,

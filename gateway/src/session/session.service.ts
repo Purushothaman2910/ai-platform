@@ -1,18 +1,42 @@
 import { Injectable } from '@nestjs/common';
 
-type Message =
-  | { role: 'system' | 'user'; content: string }
-  | { role: 'assistant'; content: string | null; tool_calls?: any[] }
-  | { role: 'tool'; tool_call_id: string; content: string };
+export interface Message {
+  id: string;
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | null;
+  timestamp: Date;
+  tool_calls?: any[];
+  tool_call_id?: string;
+}
+
+export interface Session {
+  id: string;
+  title: string;
+}
 
 @Injectable()
 export class SessionService {
   private sessions = new Map<string, Message[]>();
 
+  findAll(): Session[] {
+    return Array.from(this.sessions.keys()).map((id) => ({
+      id,
+      title: `Conversation ${id}`, // Simple fallback title
+    }));
+  }
+
+  findOne(id: string): Session | null {
+    if (this.sessions.has(id)) {
+      return { id, title: `Conversation ${id}` };
+    }
+    return null;
+  }
+
   createSession(sessionId: string) {
     if (!this.sessions.has(sessionId)) {
       this.sessions.set(sessionId, []);
     }
+    return { id: sessionId, title: `Conversation ${sessionId}` };
   }
 
   getMessages(sessionId: string): Message[] {
@@ -29,7 +53,11 @@ export class SessionService {
     this.sessions.set(sessionId, messages);
   }
 
-  clearSession(sessionId: string) {
-    this.sessions.delete(sessionId);
+  delete(id: string) {
+    this.sessions.delete(id);
+  }
+
+  deleteAll() {
+    this.sessions.clear();
   }
 }

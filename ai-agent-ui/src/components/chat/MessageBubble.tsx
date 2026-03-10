@@ -19,8 +19,6 @@ import { alpha } from "@mui/material/styles";
 export interface MessageBubbleProps {
   /** Message data */
   message: Message;
-  /** Callback for regenerate action */
-  onRegenerate?: () => void;
   /** Callback for like action */
   onLike?: () => void;
   /** Callback for dislike action */
@@ -31,7 +29,6 @@ export interface MessageBubbleProps {
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
-  onRegenerate,
   onLike,
   onDislike,
   isLast = false,
@@ -256,7 +253,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             {!isUser && !isLoading && !hasError && (
               <MessageActions
                 content={message.content}
-                onRegenerate={onRegenerate}
                 onLike={onLike}
                 onDislike={onDislike}
               />

@@ -8,7 +8,6 @@ import {
   type SnackbarCloseReason,
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import ThumbDownIcon from "@mui/icons-material/ThumbDown";
 import CheckIcon from "@mui/icons-material/Check";
@@ -18,8 +17,6 @@ import { alpha } from "@mui/material/styles";
 export interface MessageActionsProps {
   /** Message content to copy */
   content: string;
-  /** Callback for regenerate action */
-  onRegenerate?: () => void;
   /** Callback for like action */
   onLike?: () => void;
   /** Callback for dislike action */
@@ -30,7 +27,6 @@ export interface MessageActionsProps {
 
 export const MessageActions: React.FC<MessageActionsProps> = ({
   content,
-  onRegenerate,
   onLike,
   onDislike,
   isLoading = false,
@@ -99,26 +95,6 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
                   <ContentCopyIcon sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
-
-              {onRegenerate && (
-                <Tooltip title="Regenerate" arrow placement="top">
-                  <IconButton
-                    size="small"
-                    onClick={onRegenerate}
-                    sx={{
-                      width: 28,
-                      height: 28,
-                      color: "text.secondary",
-                      "&:hover": {
-                        backgroundColor: alpha("#6366F1", 0.1),
-                        color: "primary.main",
-                      },
-                    }}
-                  >
-                    <RefreshIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
-              )}
 
               {onLike && (
                 <Tooltip title="Good response" arrow placement="top">

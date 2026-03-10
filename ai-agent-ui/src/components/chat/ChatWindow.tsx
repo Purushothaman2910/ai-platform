@@ -21,8 +21,6 @@ export interface ChatWindowProps {
   onSendMessage: (message: string) => void;
   /** Callback for new chat */
   onNewChat?: () => void;
-  /** Callback for regenerate */
-  onRegenerate?: (messageId: string) => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -31,7 +29,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   isTyping = false,
   onSendMessage,
   onNewChat,
-  onRegenerate,
 }) => {
   const { containerRef } = useAutoScroll([messages, isTyping], {
     offset: 100,
@@ -113,11 +110,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     key={message.id}
                     message={message}
                     isLast={index === messages.length - 1}
-                    onRegenerate={
-                      message.role === "assistant" && onRegenerate
-                        ? () => onRegenerate(message.id)
-                        : undefined
-                    }
                   />
                 ))}
               </AnimatePresence>
