@@ -1,5 +1,8 @@
-import React from "react";
-import { Box, Typography, Chip } from "@mui/material";
+import React, { useState } from "react";
+import { Box, Typography, Chip, Collapse, IconButton } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import BuildIcon from "@mui/icons-material/Build";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -33,7 +36,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onDislike,
   isLast = false,
 }) => {
+  const [expanded, setExpanded] = useState(false);
   const isUser = message.role === "user";
+  const isTool = message.role === "tool";
   const isLoading = message.isLoading;
   const hasError = !!message.error;
 
@@ -200,7 +205,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         }}
       >
         {/* Avatar for AI messages */}
-        {!isUser && <Avatar type="ai" size="medium" />}
+        {!isUser && !isTool && <Avatar type="ai" size="medium" />}
 
         {/* Message bubble */}
         <Box
@@ -215,16 +220,20 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             sx={{
               background: isUser
                 ? "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)"
+                : isTool
+                ? alpha(colors.accent.primary, 0.05)
                 : "background.secondary",
               color: isUser ? "white" : "text.primary",
               borderRadius: isUser
                 ? "18px 18px 4px 18px"
                 : "18px 18px 18px 4px",
-              padding: "12px 16px",
+              padding: isTool ? "8px 12px" : "12px 16px",
               border: isUser ? "none" : "1px solid",
-              borderColor: hasError ? "error.main" : "divider",
+              borderColor: hasError ? "error.main" : isTool ? alpha(colors.accent.primary, 0.2) : "divider",
               boxShadow: isUser
                 ? "0 2px 8px rgba(99, 102, 241, 0.2)"
+                : isTool
+                ? "none"
                 : "0 2px 8px rgba(0, 0, 0, 0.2)",
               wordBreak: "break-word",
               position: "relative",
@@ -247,10 +256,36 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             )}
 
             {/* Message content */}
-            {renderContent()}
+            {isTool ? (
+              <Box>
+                <Box 
+                  sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                  onClick={() => setExpanded(!expanded)}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <BuildIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                      Tool Call Output
+                    </Typography>
+                  </Box>
+                  <IconButton size="small" sx={{ p: 0.5 }}>
+                    {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                  </IconButton>
+                </Box>
+                <Collapse in={expanded}>
+                  <Box sx={{ mt: 1, p: 1, bgcolor: 'background.paper', borderRadius: 1, overflowX: 'auto', border: `1px solid ${alpha(colors.accent.primary, 0.1)}` }}>
+                    <Typography component="pre" sx={{ fontSize: '11px', fontFamily: '"JetBrains Mono", monospace', color: 'text.secondary', m: 0 }}>
+                      {message.content}
+                    </Typography>
+                  </Box>
+                </Collapse>
+              </Box>
+            ) : (
+              renderContent()
+            )}
 
             {/* Message actions for AI messages */}
-            {!isUser && !isLoading && !hasError && (
+            {!isUser && !isTool && !isLoading && !hasError && (
               <MessageActions
                 content={message.content}
                 onLike={onLike}

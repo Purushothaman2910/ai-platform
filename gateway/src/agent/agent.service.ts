@@ -62,12 +62,14 @@ export class AgentService {
 
     // Enhanced system message with server info
     if (messages.length === 0) {
-      messages.push({
+      const sysMsg = {
         id: `sys-${Date.now()}`,
-        role: 'system',
+        role: 'system' as const,
         content: this.buildSystemMessage(connectedServers, tools.tools),
         timestamp: new Date(),
-      });
+      };
+      messages.push(sysMsg);
+      this.sessionService.addMessage(sessionId, sysMsg);
     }
 
     const userMessage = {

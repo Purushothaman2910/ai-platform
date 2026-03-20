@@ -1,0 +1,44 @@
+[
+    {
+        "id": "sys-1773969974752",
+        "role": "system",
+        "content": "You are a helpful AI assistant with access to 1 MCP server(s): product-server.\n\nAvailable tools:\n\n[product-server]:\n  • get_all_products: Get all products from the database\n  • get_product_by_id: Get a single product by ID\n  • add_product: Add a new product to the database\n  • update_product: Update an existing product\n  • delete_product: Delete a product from the database\n  • get_products_by_filters: Get products filtered by criteria (name, price range, stock availability)\n",
+        "timestamp": "2026-03-20T01:26:14.753Z"
+    },
+    {
+        "id": "user-1773969974753",
+        "role": "user",
+        "content": "Show all products",
+        "timestamp": "2026-03-20T01:26:14.753Z"
+    },
+    {
+        "id": "ai-1773969976670",
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+            {
+                "type": "function",
+                "index": 0,
+                "id": "call_6qjW1kZYMBux1gMMn5OPiIMa",
+                "function": {
+                    "name": "get_all_products",
+                    "arguments": "{}"
+                }
+            }
+        ],
+        "timestamp": "2026-03-20T01:26:16.671Z"
+    },
+    {
+        "id": "tool-1773969976697-9ar2r",
+        "role": "tool",
+        "tool_call_id": "call_6qjW1kZYMBux1gMMn5OPiIMa",
+        "content": "{\"content\":[{\"type\":\"text\",\"text\":\"No products found in the database.\"}]}",
+        "timestamp": "2026-03-20T01:26:16.697Z"
+    },
+    {
+        "id": "ai-1773969977741",
+        "role": "assistant",
+        "content": "No products found in the database.",
+        "timestamp": "2026-03-20T01:26:17.741Z"
+    }
+]

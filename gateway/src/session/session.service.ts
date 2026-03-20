@@ -40,7 +40,8 @@ export class SessionService {
   }
 
   getMessages(sessionId: string): Message[] {
-    return this.sessions.get(sessionId) || [];
+    const messages = this.sessions.get(sessionId);
+    return messages ? [...messages] : [];
   }
 
   addMessage(sessionId: string, message: Message) {

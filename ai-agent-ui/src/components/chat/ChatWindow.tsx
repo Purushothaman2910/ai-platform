@@ -105,13 +105,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               animate="visible"
             >
               <AnimatePresence mode="popLayout">
-                {messages.map((message, index) => (
-                  <MessageBubble
-                    key={message.id}
-                    message={message}
-                    isLast={index === messages.length - 1}
-                  />
-                ))}
+                {messages
+                  .filter(
+                    (message) =>
+                      message.role !== "system" &&
+                      !(
+                        message.role === "assistant" &&
+                        (!message.content || message.content.trim() === "")
+                      )
+                  )
+                  .map((message, index, filteredMessages) => (
+                    <MessageBubble
+                      key={message.id}
+                      message={message}
+                      isLast={index === filteredMessages.length - 1}
+                    />
+                  ))}
               </AnimatePresence>
             </motion.div>
 
