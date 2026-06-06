@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session, ChatState } from "../types/chat.types";
 import {
@@ -31,6 +31,7 @@ const initialChatState: ChatState = {
 export function useChat() {
   const queryClient = useQueryClient();
   const [chatState, setChatState] = useState<ChatState>(initialChatState);
+  const isTypingRef = useRef(false);
 
   // Query for sessions
   const {
@@ -102,61 +103,76 @@ export function useChat() {
         throw new Error("No active session");
       }
 
+      if (isTypingRef.current) {
+        return null;
+      }
+
+      isTypingRef.current = true;
+
       // Create user message
       const userMessage = createUserMessage(
         chatState.currentSession.id,
         content,
       );
 
-      // Add user message to state immediately
+      // Create loading message with a unique ID for this specific request
+      const loadingMessage = createLoadingMessage(chatState.currentSession.id);
+      const loadingMessageId = loadingMessage.id;
+
+      // Add messages to state immediately
       setChatState((prev) => ({
         ...prev,
-        messages: [...prev.messages, userMessage],
+        messages: [...prev.messages, userMessage, loadingMessage],
         isTyping: true,
         error: null,
       }));
 
-      // Create loading message
-      const loadingMessage = createLoadingMessage(chatState.currentSession.id);
-      setChatState((prev) => ({
-        ...prev,
-        messages: [...prev.messages, loadingMessage],
-      }));
-
-      // Send to API
-      const response = await askAgent({
-        sessionId: chatState.currentSession.id,
-        question: content,
-      });
-
-      // Replace loading message with AI response
-      const aiMessage = createAIMessage(
-        chatState.currentSession.id,
-        response.response,
-        response.toolCalls,
-      );
-
-      // Update session with new title if it's a new conversation
-      if (chatState.currentSession.messageCount === 0) {
-        const title = generateSessionTitle(content);
-        await updateSession(chatState.currentSession.id, {
-          title,
-          messageCount: 1,
-          lastMessage: content,
+      try {
+        // Send to API
+        const response = await askAgent({
+          sessionId: chatState.currentSession.id,
+          question: content,
         });
-      } else {
-        await updateSession(chatState.currentSession.id, {
-          messageCount: (chatState.currentSession.messageCount || 0) + 1,
-          lastMessage: content,
-        });
+
+        // Replace loading message with AI response
+        const aiMessage = createAIMessage(
+          chatState.currentSession.id,
+          response.response,
+          response.toolCalls,
+        );
+
+        // Update session with new title if it's a new conversation
+        if (chatState.currentSession.messageCount === 0) {
+          const title = generateSessionTitle(content);
+          await updateSession(chatState.currentSession.id, {
+            title,
+            messageCount: 1,
+            lastMessage: content,
+          });
+        } else {
+          await updateSession(chatState.currentSession.id, {
+            messageCount: (chatState.currentSession.messageCount || 0) + 1,
+            lastMessage: content,
+          });
+        }
+
+        return { userMessage, aiMessage, loadingMessageId };
+      } catch (error) {
+        isTypingRef.current = false;
+        throw { error, loadingMessageId };
+      } finally {
+        isTypingRef.current = false;
       }
-
-      return { userMessage, aiMessage };
     },
-    onSuccess: ({ aiMessage }) => {
+    onSuccess: (data) => {
+      if (!data) return;
+      const { aiMessage, loadingMessageId } = data;
+
       setChatState((prev) => ({
         ...prev,
-        messages: prev.messages.map((m) => (m.isLoading ? aiMessage : m)),
+        messages: prev.messages.map((m) =>
+          m.id === loadingMessageId ? aiMessage : m,
+        ),
         isTyping: false,
         error: null,
       }));
@@ -167,18 +183,23 @@ export function useChat() {
         queryKey: ["messages", chatState.currentSession?.id],
       });
     },
-    onError: (error: Error) => {
-      // Replace loading message with error
+    onError: (errorData: any) => {
+      const { error, loadingMessageId } = errorData;
+      const errorMessageString = error?.message || "Failed to get response";
+
+      // Replace specific loading message with error
       const errorMessage = createErrorMessage(
         chatState.currentSession!.id,
-        error.message || "Failed to get response",
+        errorMessageString,
       );
 
       setChatState((prev) => ({
         ...prev,
-        messages: prev.messages.map((m) => (m.isLoading ? errorMessage : m)),
+        messages: prev.messages.map((m) =>
+          m.id === loadingMessageId ? errorMessage : m,
+        ),
         isTyping: false,
-        error: error.message,
+        error: errorMessageString,
       }));
     },
   });

@@ -11,7 +11,14 @@ import { SessionModule } from './session/session.module';
 import { ObservablityModule } from './observablity/observablity.module';
 
 @Module({
-  imports: [ConfigModule.forRoot(), LlmModule, AgentModule, McpClientModule, SessionModule, ObservablityModule],
+  imports: [
+    ConfigModule.forRoot(),
+    LlmModule,
+    AgentModule,
+    McpClientModule,
+    SessionModule,
+    ObservablityModule,
+  ],
   controllers: [AppController, AiController],
   providers: [AppService, AiService],
 })

@@ -31,6 +31,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   placeholder = "Ask me anything...",
 }) => {
   const [message, setMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const textFieldRef = useRef<HTMLDivElement>(null);
 
@@ -39,16 +40,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const isNearLimit = message.length > WARNING_MESSAGE_LENGTH && !isOverLimit;
 
   const handleSend = useCallback(() => {
-    if (isEmpty || disabled || isOverLimit) return;
+    if (isEmpty || disabled || isOverLimit || isSending) return;
 
+    setIsSending(true);
     onSend(message);
     setMessage("");
+
+    // We reset isSending after a short delay or when message changes to allow future sends
+    // The parent's 'disabled' prop (isTyping) will eventually take over
+    setTimeout(() => {
+      setIsSending(false);
+    }, 500);
 
     // Reset focus after sending
     setTimeout(() => {
       textFieldRef.current?.querySelector("textarea")?.focus();
     }, 0);
-  }, [message, disabled, isEmpty, isOverLimit, onSend]);
+  }, [message, disabled, isEmpty, isOverLimit, isSending, onSend]);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
